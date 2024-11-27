@@ -1,0 +1,34 @@
+# 1. 首先下载QIIME2安装包 (以2024.2版本为例)
+# 根据你的操作系统选择对应的链接
+wget https://data.qiime2.org/distro/core/qiime2-2024.2-py38-linux-conda.yml
+
+# 2. 创建新的conda环境
+conda env create -n qiime2 --file qiime2-2024.2-py38-linux-conda.yml
+
+# 3. 激活QIIME2环境
+conda activate qiime2
+
+# 4. 验证安装
+qiime --help
+
+# 5. 安装常用插件（可选）
+conda install -c bioconda -c conda-forge \
+    qiime2-alignment \
+    qiime2-composition \
+    qiime2-cutadapt \
+    qiime2-dada2 \
+    qiime2-deblur \
+    qiime2-diversity \
+    qiime2-emperor \
+    qiime2-feature-classifier \
+    qiime2-phylogeny \
+    qiime2-quality-control \
+    qiime2-taxa
+
+# 6. 设置环境变量（建议添加到~/.bashrc文件中）
+echo 'export LC_ALL=C.UTF-8' >> ~/.bashrc
+echo 'export LANG=C.UTF-8' >> ~/.bashrc
+source ~/.bashrc
+
+# 7. 测试QIIME2是否正常工作
+qiime info
