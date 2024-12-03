@@ -1,0 +1,127 @@
+sudo bash setup-apt.sh#安装
+# 所有安装文件都在~/.aspera/connect目录下，添加环境变量
+echo 'export PATH=/home/gan/.aspera/connect/bin/:$PATH' >> ~/.bashrc
+echo 'export PATH=/usr/local/ncbi/sra-tools/bin/:$PATH' >>~/.bashrc#添加环境变量
+source /etc/profile.d/sra-tools.sh
+/usr/local/ncbi/sra-tools/bin
+source ~/.bashrc#变量生效
+sudo apt install ncbi-entrez-direct#软件依赖软件
+prefetch -V#检查版本3.1.1
+vdb-config -i#打开图形窗口，设置保存目录至当前
+prefetch --option-file sra.txt#
+cat sra.ids | sed 's/SRR/fastq-dump --split-files SRR/'#将SRA转换为fsatq，展示出会拆分的数据
+cat sra.ids | sed 's/SRR/fastq-dump --split-files SRR/' | bash#确认展示的无误后，执行拆分
+--output-directory
+
+
+esearch -db sra -query PRJNA554111  | efetch -format runinfo #
+mkdir PRJNA554111
+esearch -db sra -query PRJNA554111  | efetch -format runinfo > PRJNA554111/PRJNA554111.txt #将PRJNA554111中的SRR号提取出来
+cat PRJNA554111/PRJNA554111.txt | cut -f 1 -d ',' | grep SRR | wc -l #展示索引数目是否正确
+cat PRJNA554111/PRJNA554111.txt | cut -f 1 -d ',' | grep SRR > PRJNA554111/sra.ids #提取SRR编号至ids
+prefetch --option-file PRJNA554111/sra.ids --output-directory PRJNA554111 #批量下载sra.ids中的srr
+cat PRJNA554111/sra.ids | sed 's/SRR/fastq-dump --split-files -O PRJNA554111 SRR/' | bash #一键转换所有符合的数据
+wc -l *.fastq#有多少？
+gzip PRJNA554111/*.fastq
+
+mkdir PRJNA554111  | esearch -db sra -query PRJNA554111  | efetch -format runinfo > PRJNA554111/PRJNA554111.txt
+cat PRJNA554111/PRJNA554111.txt | cut -f 1 -d ',' | grep SRR | wc -l
+cat PRJNA554111/PRJNA554111.txt | cut -f 1 -d ',' | grep SRR > PRJNA554111/sra.ids
+prefetch --option-file PRJNA554111/sra.ids --output-directory PRJNA554111
+cat PRJNA554111/sra.ids | sed 's/SRR/fastq-dump --split-files -O PRJNA554111 SRR/' | bash
+wc -l PRJNA554111/*.fastq
+gzip PRJNA554111/*.fastq
+
+mkdir PRJEB24580 ; esearch -db sra -query PRJEB24580  | efetch -format runinfo > PRJEB24580/PRJEB24580.txt ; cat PRJEB24580/PRJEB24580.txt | cut -f 1 -d ',' | grep ERR | wc -l ; cat PRJEB24580/PRJEB24580.txt | cut -f 1 -d ',' | grep ERR > PRJEB24580/sra.ids ; prefetch --option-file PRJEB24580/sra.ids --output-directory PRJEB24580 ; cat PRJEB24580/sra.ids | sed 's/ERR/fastq-dump --split-files -O PRJEB24580 ERR/' | bash ; wc -l PRJEB24580/*.fastq ; gzip PRJEB24580/*.fastq
+mkdir PRJEB58896
+esearch -db sra -query PRJEB58896  | efetch -format runinfo > PRJEB58896/PRJEB58896.txt #将PRJNA554111中的ERR号提取出来
+cat PRJEB58896/PRJEB58896.txt | cut -f 1 -d ',' | grep ERR | wc -l #展示索引数目是否正确
+cat PRJEB58896/PRJEB58896.txt | cut -f 1 -d ',' | grep ERR > PRJEB58896/sra.ids #提取ERR编号至ids
+prefetch --option-file PRJEB58896/sra.ids --output-directory PRJEB58896 #批量下载sra.ids中的ERR
+
+mkdir PRJEB58896 ; esearch -db sra -query PRJEB58896  | efetch -format runinfo > PRJEB58896/PRJEB58896.txt ; cat PRJEB58896/PRJEB58896.txt | cut -f 1 -d ',' | grep ERR | wc -l ; cat PRJEB58896/PRJEB58896.txt | cut -f 1 -d ',' | grep ERR > PRJEB58896/sra.ids ; prefetch --option-file PRJEB58896/sra.ids --output-directory PRJEB58896 ; cat PRJEB58896/sra.ids | sed 's/ERR/fastq-dump --split-files -O PRJEB58896 ERR/' | bash ; wc -l PRJEB58896/*.fastq ; gzip PRJEB58896/*.fastq
+质控
+fastqc *.fastq.gz  |multiqc ./
+清洗
+mkdir clean
+#!/bin/bash
+paste <(ls *1.fastq) <(ls *2.fastq) > config
+cat config | while read id
+do
+arr=$id
+fq1=${arr[0]}
+fq2=${arr[1]}
+nohup trim_galore -q 25 -phred33 -length 50 -stringency 3 -paired \
+    -o /clean \
+    $fq1 $fq2 &
+done
+
+#!/bin/bash
+for i in `seq 194 209`
+    do 
+    trim_galore -q 25 -phred33 -length 50 -stringency 3 -paired \
+    -o /media/sf_/example/data/clean_data \
+    /media/sf_/example/data/raw_data/ERR1698"$i"_1.fastq.gz \   #一端测序数据
+    /media/sf_/example/data/raw_data/ERR1698"$i"_2.fastq.gz     #另一端测序数据
+done
+比对
+这里也是一个小脚本
+#!/bin/bash
+mkdir sam_out
+paste <(ls *fq.gz | cut -d"_" -f 1 |sort | uniq) <(ls *1_val_1.fq.gz) <(ls *2_val_2.fq.gz) > configure
+cat configure|while read id;do
+arr=(${id})
+sample=${arr[0]}
+fq1=${arr[1]}
+fq2=${arr[2]}
+echo $sample $fq1 $fq2
+nohup hisat2 -p 4 -k 1 --dta -x /mnt/data/hwb/database/mouse_genome_esml_84/grcm38_tran/genome_tran -1 $fq1 -2 $fq2 -S ./sam
+_out/$sample.sam &
+done
+
+
+#!/bin/bash
+for i in `seq 194 209`
+do
+    hisat2 -p 4 -x /media/sf_example/data/ref/genome \  #索引文件绝对路径
+    -1 /media/sf_example/data/clean_data/ERR1698"$i"_1.fq.gz \
+    -2 /media/sf_example/data/clean_data/ERR1698"$i"_2.fq.gz \
+    -S /media/sf_example/data/hisat2_sam/ERR1698"$i".sam    #注意大写的S
+done
+转bam
+# sam2bam
+cd ../sam_out/
+ls *sam|while read id;do nohup samtools view -b -F 4 -@ 4 $id | samtools sort -@ 4 -O BAM - > ../bam_out/$(basename $id "sam")mapped.sort.bam &
+done
+
+
+#!/bin/bash
+ls *.sam | while read id
+do
+    samtools sort -l 0 -@ 5 -o $(basename $id ".sam").bam $id     # 指定输出文件，改后缀.bam
+done
+构建bam索引
+ls *.bam | xargs -i samtools index {}
+参考基因组bam索引
+samtools faidx Arabidopsis_thaliana.dna.genome.fa
+bam文件qc
+#!/bin/bash
+ls *.bam | while read id
+do
+    samtools flagstat -@ 4 $id > $(basename $id ".bam").flagstat     # 自定义输出文件
+done
+multiqc
+定量
+# 多样本
+featureCounts -t exon -g gene_id -a Mus_musculus.GRCm39.113.gtf -o counts.txt ./*.bam
+
+
+
+#!/bin/bash
+for i in `seq 194 209`
+do
+    stringtie -p 4 -e \
+    -G /media/sf_/data/ref/Arabidopis_thaliana.gtf \    # 参考基因组注释文件
+    -o /media/sf_/data/fastq/gtf/ERR1698"$i".gtf \      # 自定义输出文件
+    /media/sf_/data/fastq/bam/ERR1698"$i".bam   # 输入的bam文件
+done
