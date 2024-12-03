@@ -1,3 +1,5 @@
+gsettings set org.gnome.desktop.interface gtk-enable-primary-paste true
+
 # 1. 首先下载QIIME2安装包 (以2024.2版本为例)
 # 根据你的操作系统选择对应的链接
 wget https://data.qiime2.org/distro/core/qiime2-2024.2-py38-linux-conda.yml
